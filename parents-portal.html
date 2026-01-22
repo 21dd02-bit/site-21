@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parents Portal | School Name</title>
+    <link rel="stylesheet" href="../assets/styles/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
+</head>
+<body>
+    <div id="navbar"></div> 
+
+    <section class="parents-portal">
+        <h1 data-aos="fade-down">👨‍👩‍👦 Parents Portal</h1>
+
+        <div class="portal-box" data-aos="fade-up">
+            <label for="student-id">🔎 Enter Student ID:</label>
+            <input type="text" id="student-id" placeholder="Enter Student ID">
+            <button onclick="fetchStudentData()">Check Updates</button>
+        </div>
+
+        <div id="loading" class="loading">⏳ Fetching Student Data...</div>
+        <div id="student-info" class="student-info"></div>
+    </section>
+
+    <div id="footer"></div>
+
+    <script>
+        fetch("../components/navbar.html").then(res => res.text()).then(data => document.getElementById("navbar").innerHTML = data);
+        fetch("../components/footer.html").then(res => res.text()).then(data => document.getElementById("footer").innerHTML = data);
+    
+        AOS.init();
+    
+        function fetchStudentData() {
+            const studentId = document.getElementById("student-id").value;
+            const loadingDiv = document.getElementById("loading");
+            const infoDiv = document.getElementById("student-info");
+    
+            if (!studentId) {
+                alert("⚠️ Please enter a valid Student ID!");
+                return;
+            }
+    
+            loadingDiv.style.display = "block";
+            infoDiv.innerHTML = "";
+    
+            // Fetch student data
+            fetch(`http://localhost:5000/api/students/${studentId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
+                .then(studentData => {
+                    const studentName = studentData.name;
+                    const studentClass = studentData.class;
+    
+                    // Fetch today's homework for the student's class
+                    fetch(`http://localhost:5000/api/homework/${studentClass}`)
+                        .then(response => {
+                            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                            return response.json();
+                        })
+                        .then(homeworkData => {
+                            loadingDiv.style.display = "none";
+    
+                            // Get today's date in YYYY-MM-DD format
+                            const today = new Date().toISOString().split("T")[0];
+    
+                            // Filter homework for today's date
+                            const todaysHomework = homeworkData.filter(hw => hw.dueDate === today);
+    
+                            // Display student info and today's homework
+                            infoDiv.innerHTML = `
+                                <div class="student-card" data-aos="fade-up">
+                                    <h2>📚 ${studentName}</h2>
+                                    <p><strong>📌 Class:</strong> ${studentClass}</p>
+                                    <h3>📝 Today's Homework:</h3>
+                                    ${
+                                        todaysHomework.length > 0
+                                            ? todaysHomework.map(hw => `
+                                                <div class="homework-item">
+                                                    <p><strong>${hw.title}:</strong> ${hw.description}</p>
+                                                </div>
+                                            `).join("")
+                                            : "<p>No homework assigned for today.</p>"
+                                    }
+                                </div>
+                            `;
+                        })
+                        .catch(error => {
+                            loadingDiv.style.display = "none";
+                            infoDiv.innerHTML = `<p class="error-msg">❌ Error fetching homework. Please try again.</p>`;
+                            console.error("Error fetching homework:", error);
+                        });
+                })
+                .catch(error => {
+                    loadingDiv.style.display = "none";
+                    infoDiv.innerHTML = `<p class="error-msg">❌ Error fetching student data. Please try again.</p>`;
+                    console.error("Error fetching student:", error);
+                });
+        }
+    </script>
+</body>
+</html>
